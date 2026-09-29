@@ -2,727 +2,598 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>우주 전투기 게임</title>
-    <!-- Tailwind CSS 로드 -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>지옥의 우주 전투</title>
     <style>
-        /* 게임 캔버스 기본 스타일링 */
         body {
-            margin: 0;
-            overflow: hidden; /* 스크롤바 숨김 */
-            background-color: #0f172a; /* 어두운 우주 배경색 */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            color: white;
-            font-family: 'Inter', sans-serif;
-            touch-action: none; /* 모바일에서 화면 스크롤 방지 */
-        }
-        
-        #game-container {
-            position: relative;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
-            border-radius: 8px;
-            overflow: hidden;
+            margin: 0; padding: 0; background-color: #222; color: white;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100vh; font-family: 'Arial', sans-serif; overflow: hidden;
+            touch-action: none; user-select: none;
         }
 
-        #gameCanvas {
-            display: block;
-            background: linear-gradient(to bottom, #0f172a 0%, #1e1b4b 100%);
-            border-radius: 8px;
+        #lobbyScreen {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, #333 0%, #000 100%); z-index: 10;
+        }
+        #lobbyScreen h1 { font-size: 45px; color: #FFD700; text-shadow: 0 0 20px #ff3333; margin-bottom: 10px; text-align: center; }
+        #lobbyScreen .subtitle { font-size: 16px; color: #ccc; margin-bottom: 50px; text-align: center; }
+        #startBtn { padding: 15px 40px; font-size: 24px; font-weight: bold; color: white; background-color: #ff3333; border: 3px solid #fff; border-radius: 15px; cursor: pointer; box-shadow: 0 0 15px #ff3333; transition: transform 0.2s; }
+        #startBtn:hover { transform: scale(1.1); }
+
+        #uiBoard {
+            font-size: 16px; font-weight: bold; margin-bottom: 5px;
+            background-color: #111; padding: 10px 15px; border-radius: 8px; border: 2px solid #555;
+            width: 360px; text-align: center; max-width: 90%;
+        }
+        #scoreBoard { color: #00ffff; } #lifeBoard { color: #ff3333; } #bombBoard { color: #ffaa00; }
+
+        canvas {
+            background-color: #000; border: 3px solid #555; box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+            max-width: 95vw; max-height: 60vh;
         }
 
-        /* UI 오버레이 스타일링 */
-        .overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background-color: rgba(0, 0, 0, 0.7);
-            z-index: 10;
-        }
+        .instructions { margin-top: 5px; font-size: 12px; color: #aaa; text-align: center; }
 
-        .hidden {
-            display: none !important;
+        #mobileControls {
+            display: flex; justify-content: space-between; align-items: center;
+            width: 380px; max-width: 95vw; margin-top: 10px;
         }
+        .d-pad { display: grid; grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(3, 50px); gap: 2px; }
+        #btnUp { grid-column: 2; grid-row: 1; } #btnLeft { grid-column: 1; grid-row: 2; }
+        #btnRight { grid-column: 3; grid-row: 2; } #btnDown { grid-column: 2; grid-row: 3; }
+        .action-pad { display: flex; gap: 10px; align-items: flex-end; padding-bottom: 10px; }
 
-        #score-board {
-            position: absolute;
-            top: 10px;
-            left: 20px;
-            font-size: 1.5rem;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            z-index: 5;
-            color: #38bdf8;
-        }
-        
-        #health-board {
-            position: absolute;
-            top: 10px;
-            right: 20px;
-            font-size: 1.5rem;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            z-index: 5;
-            color: #ef4444;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            color: white;
-            padding: 12px 30px;
-            border: none;
-            border-radius: 30px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-            margin-top: 20px;
-        }
-
-        .btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
-        }
-        
-        /* 모바일 터치 컨트롤 UI */
-        #mobile-controls {
-            position: absolute;
-            bottom: 20px;
-            left: 0;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 20px;
-            box-sizing: border-box;
-            z-index: 5;
-            opacity: 0.5;
-        }
-        
-        .d-pad {
-            display: grid;
-            grid-template-columns: repeat(3, 50px);
-            grid-template-rows: repeat(3, 50px);
-            gap: 5px;
-        }
-        
         .control-btn {
-            background-color: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            user-select: none;
+            width: 50px; height: 50px; border-radius: 50%; font-size: 20px;
+            border: none; background-color: rgba(255, 255, 255, 0.2);
+            color: white; cursor: pointer; backdrop-filter: blur(5px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); -webkit-tap-highlight-color: transparent;
         }
-        
-        .control-btn:active {
-            background-color: rgba(255, 255, 255, 0.5);
+        .control-btn:active { background-color: rgba(255, 255, 255, 0.5); transform: scale(0.95); }
+        .fire-btn { background-color: rgba(255, 51, 51, 0.4); width: 65px; height: 65px; font-size: 26px; } 
+        .fire-btn:active { background-color: rgba(255, 51, 51, 0.8); }
+        .bomb-btn { background-color: rgba(255, 170, 0, 0.4); width: 55px; height: 55px; margin-bottom: 5px; } 
+        .bomb-btn:active { background-color: rgba(255, 170, 0, 0.8); }
+
+        #resultScreen {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); z-index: 20; backdrop-filter: blur(4px);
         }
-        
-        #btn-up { grid-column: 2; grid-row: 1; }
-        #btn-left { grid-column: 1; grid-row: 2; }
-        #btn-right { grid-column: 3; grid-row: 2; }
-        #btn-down { grid-column: 2; grid-row: 3; }
-        
-        #action-buttons {
-            display: flex;
-            align-items: flex-end;
+        #resultTitle { font-size: 55px; margin-bottom: 10px; text-align: center; }
+        #resultScore { font-size: 24px; color: white; margin-bottom: 40px; }
+        #restartBtn { 
+            padding: 15px 40px; font-size: 24px; font-weight: bold; color: white; 
+            background-color: #555; border: 3px solid #fff; border-radius: 15px; 
+            cursor: pointer; transition: all 0.2s; 
         }
-        
-        #btn-shoot {
-            width: 70px;
-            height: 70px;
-            background-color: rgba(239, 68, 68, 0.3);
-            border: 2px solid rgba(239, 68, 68, 0.6);
-            border-radius: 50%;
-            font-weight: bold;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            user-select: none;
-        }
-        #btn-shoot:active {
-            background-color: rgba(239, 68, 68, 0.6);
-        }
-        
-        /* 데스크톱에서는 터치 컨트롤 숨김 */
-        @media (min-width: 768px) {
-            #mobile-controls {
-                display: none;
-            }
-        }
+        #restartBtn:hover { background-color: #777; transform: scale(1.1); }
     </style>
 </head>
 <body>
 
-<div id="game-container">
-    <div id="score-board">점수: <span id="score">0</span></div>
-    <div id="health-board">❤️ <span id="health">3</span></div>
-    
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    
-    <!-- 시작 화면 -->
-    <div id="startScreen" class="overlay">
-        <h1 class="text-5xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 text-center">우주 방위대</h1>
-        <p class="mb-2 text-gray-300">방향키(←,↑,→,↓) 로 이동</p>
-        <p class="mb-8 text-gray-300">스페이스바(Space) 로 발사</p>
-        <button id="startBtn" class="btn">게임 시작</button>
+    <div id="lobbyScreen">
+        <h1>🚀 SPACE HELL 🚀</h1>
+        <p class="subtitle">우주를 집어삼키는 보스들을 물리치세요!</p>
+        <button id="startBtn">게임 시작</button>
     </div>
 
-    <!-- 게임 오버 화면 -->
-    <div id="gameOverScreen" class="overlay hidden">
-        <h1 class="text-5xl font-bold mb-4 text-red-500">임무 실패</h1>
-        <p class="text-2xl mb-6">최종 점수: <span id="finalScore" class="font-bold text-yellow-400">0</span></p>
-        <button id="restartBtn" class="btn">다시 시작</button>
+    <div id="uiBoard" style="display: none;">
+        <span id="scoreBoard">점수: 0</span> &nbsp;|&nbsp; 
+        <span id="lifeBoard">생명: ❤️❤️</span> &nbsp;|&nbsp;
+        <span id="bombBoard">폭탄(B): 💣💣</span>
     </div>
     
-    <!-- 모바일 터치 컨트롤 (작은 화면에서만 보임) -->
-    <div id="mobile-controls">
+    <canvas id="gameCanvas" width="400" height="550" style="display: none;"></canvas>
+    
+    <div id="mobileControls" style="display: none;">
         <div class="d-pad">
-            <div id="btn-up" class="control-btn">↑</div>
-            <div id="btn-left" class="control-btn">←</div>
-            <div id="btn-right" class="control-btn">→</div>
-            <div id="btn-down" class="control-btn">↓</div>
+            <button id="btnUp" class="control-btn">⬆️</button>
+            <button id="btnLeft" class="control-btn">⬅️</button>
+            <button id="btnRight" class="control-btn">➡️</button>
+            <button id="btnDown" class="control-btn">⬇️</button>
         </div>
-        <div id="action-buttons">
-            <div id="btn-shoot">FIRE</div>
+        <div class="action-pad">
+            <button id="btnBomb" class="control-btn bomb-btn">💣</button>
+            <button id="btnFire" class="control-btn fire-btn">🔥</button>
         </div>
     </div>
-</div>
 
-<script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    
-    // UI 요소
-    const scoreElement = document.getElementById('score');
-    const healthElement = document.getElementById('health');
-    const startScreen = document.getElementById('startScreen');
-    const gameOverScreen = document.getElementById('gameOverScreen');
-    const finalScoreElement = document.getElementById('finalScore');
-    const startBtn = document.getElementById('startBtn');
-    const restartBtn = document.getElementById('restartBtn');
-    const gameContainer = document.getElementById('game-container');
+    <div id="resultScreen" style="display: none;">
+        <h1 id="resultTitle">YOU DIED</h1>
+        <p id="resultScore">최종 점수: 0점</p>
+        <button id="restartBtn">다시 시작하기</button>
+    </div>
 
-    // 반응형 캔버스 크기 조정
-    function resizeCanvas() {
-        const maxWidth = Math.min(800, window.innerWidth - 20);
-        const maxHeight = Math.min(600, window.innerHeight - 20);
-        
-        // 4:3 비율 유지 (선택사항, 화면에 꽉 차게 하려면 주석 처리)
-        // const ratio = 4 / 3;
-        // if (maxWidth / maxHeight > ratio) {
-        //     canvas.width = maxHeight * ratio;
-        //     canvas.height = maxHeight;
-        // } else {
-        //     canvas.width = maxWidth;
-        //     canvas.height = maxWidth / ratio;
-        // }
-        
-        canvas.width = maxWidth;
-        canvas.height = maxHeight;
-        gameContainer.style.width = canvas.width + 'px';
-        gameContainer.style.height = canvas.height + 'px';
-    }
-    
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas(); // 초기 크기 설정
+    <div class="instructions" style="display: none;">
+        <p>PC: ⬅️➡️⬆️⬇️ 이동 | Space 공격 | B 폭탄</p>
+    </div>
 
-    // 게임 상태 변수
-    let animationId;
-    let isGameRunning = false;
-    let score = 0;
-    let frameCount = 0;
+    <script>
+        // 페이지가 완전히 로딩된 후에 안전하게 게임을 세팅합니다.
+        window.onload = function() {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const scoreElement = document.getElementById('scoreBoard');
+            const lifeElement = document.getElementById('lifeBoard');
+            const bombElement = document.getElementById('bombBoard');
 
-    // 키보드 입력 상태 관리
-    const keys = {
-        ArrowUp: false,
-        ArrowDown: false,
-        ArrowLeft: false,
-        ArrowRight: false,
-        Space: false
-    };
+            const lobbyScreen = document.getElementById('lobbyScreen');
+            const startBtn = document.getElementById('startBtn');
+            const uiBoard = document.getElementById('uiBoard');
+            const mobileControls = document.getElementById('mobileControls');
+            const instructions = document.querySelector('.instructions');
 
-    // 터치 입력 상태 관리 (모바일)
-    const touchControls = {
-        up: false,
-        down: false,
-        left: false,
-        right: false,
-        shoot: false
-    };
+            const resultScreen = document.getElementById('resultScreen');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultScore = document.getElementById('resultScore');
+            const restartBtn = document.getElementById('restartBtn');
 
-    // 게임 객체 배열
-    let bullets = [];
-    let enemies = [];
-    let particles = [];
-    let stars = [];
-
-    // 배경 별 초기화
-    for(let i = 0; i < 100; i++) {
-        stars.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
-            size: Math.random() * 2,
-            speed: Math.random() * 1 + 0.1
-        });
-    }
-
-    // 플레이어(전투기) 클래스
-    class Player {
-        constructor() {
-            this.width = 40;
-            this.height = 40;
-            this.x = canvas.width / 2;
-            this.y = canvas.height - this.height - 20;
-            this.color = '#38bdf8'; // 기본 색상
-            this.speed = 5;
-            this.health = 3;
-            this.isInvulnerable = false;
-            this.invulnerableTimer = 0;
-            this.lastShotTime = 0;
-            this.shootDelay = 200; // 발사 딜레이 (ms)
-        }
-
-        draw() {
-            ctx.save();
-            // 무적 상태 깜빡임 효과
-            if (this.isInvulnerable) {
-                ctx.globalAlpha = Math.sin(Date.now() / 50) * 0.5 + 0.5;
-            }
-
-            // 전투기 형태 그리기 (간단한 삼각형 베이스)
-            ctx.beginPath();
-            ctx.moveTo(this.x, this.y - this.height / 2); // 기수 (앞부분)
-            ctx.lineTo(this.x + this.width / 2, this.y + this.height / 2); // 우측 날개
-            ctx.lineTo(this.x, this.y + this.height / 3); // 후방 엔진부
-            ctx.lineTo(this.x - this.width / 2, this.y + this.height / 2); // 좌측 날개
-            ctx.closePath();
-            
-            // 그라데이션 적용
-            let gradient = ctx.createLinearGradient(this.x, this.y - this.height/2, this.x, this.y + this.height/2);
-            gradient.addColorStop(0, '#7dd3fc');
-            gradient.addColorStop(1, '#0284c7');
-            
-            ctx.fillStyle = gradient;
-            ctx.fill();
-            
-            // 엔진 불꽃 그리기 (움직일 때)
-            if (keys.ArrowUp || touchControls.up) {
-                ctx.beginPath();
-                ctx.moveTo(this.x - 5, this.y + this.height / 3);
-                ctx.lineTo(this.x + 5, this.y + this.height / 3);
-                ctx.lineTo(this.x, this.y + this.height / 2 + Math.random() * 15 + 10);
-                ctx.fillStyle = '#f97316'; // 주황색 불꽃
+            // ✨ 오류 원천 차단: 직접 선을 그어서 그리는 완벽한 함수들 ✨
+            function drawPlayer(ctx, x, y, w, h) {
+                ctx.save(); ctx.translate(x, y); ctx.scale(w / 60, h / 60);
+                
+                // 1. 엔진 불꽃 (반짝이는 부스터 효과)
+                ctx.fillStyle = (Math.random() > 0.5) ? '#ffaa00' : '#ff3300';
+                ctx.beginPath(); 
+                ctx.moveTo(22, 55); 
+                ctx.lineTo(30, 65 + Math.random() * 8); // 불꽃이 흔들리는 연출
+                ctx.lineTo(38, 55); 
                 ctx.fill();
+
+                // 2. 주 날개 (메인 윙)
+                ctx.fillStyle = '#1e90ff';
+                ctx.beginPath(); 
+                ctx.moveTo(30, 15); ctx.lineTo(60, 45); ctx.lineTo(38, 45); 
+                ctx.lineTo(30, 50); ctx.lineTo(22, 45); ctx.lineTo(0, 45); 
+                ctx.closePath(); ctx.fill();
+
+                // 3. 동체 (몸통)
+                ctx.fillStyle = '#eeeeee';
+                ctx.beginPath(); 
+                ctx.moveTo(30, 0); // 뾰족한 기수
+                ctx.lineTo(38, 20); ctx.lineTo(38, 55); 
+                ctx.lineTo(22, 55); ctx.lineTo(22, 20); 
+                ctx.closePath(); ctx.fill();
+
+                // 4. 동체 디테일 (명암 선)
+                ctx.fillStyle = '#aaaaaa';
+                ctx.beginPath(); 
+                ctx.moveTo(30, 0); ctx.lineTo(34, 20); ctx.lineTo(34, 55); 
+                ctx.lineTo(26, 55); ctx.lineTo(26, 20); 
+                ctx.closePath(); ctx.fill();
+
+                // 5. 꼬리 날개
+                ctx.fillStyle = '#0055a4';
+                ctx.beginPath(); ctx.moveTo(26, 45); ctx.lineTo(10, 58); ctx.lineTo(26, 55); ctx.closePath(); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(34, 45); ctx.lineTo(50, 58); ctx.lineTo(34, 55); ctx.closePath(); ctx.fill();
+
+                // 6. 조종석 (캐노피)
+                ctx.fillStyle = '#00ffff';
+                ctx.beginPath(); ctx.ellipse(30, 25, 5, 12, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ffffff'; // 유리 반사광
+                ctx.beginPath(); ctx.ellipse(30, 20, 2, 5, 0, 0, Math.PI * 2); ctx.fill();
+
+                ctx.restore();
             }
 
-            ctx.restore();
-        }
-
-        update() {
-            // 이동 로직 (키보드 또는 터치)
-            if ((keys.ArrowLeft || touchControls.left) && this.x - this.width / 2 > 0) this.x -= this.speed;
-            if ((keys.ArrowRight || touchControls.right) && this.x + this.width / 2 < canvas.width) this.x += this.speed;
-            if ((keys.ArrowUp || touchControls.up) && this.y - this.height / 2 > 0) this.y -= this.speed;
-            if ((keys.ArrowDown || touchControls.down) && this.y + this.height / 2 < canvas.height) this.y += this.speed;
-
-            // 발사 로직
-            const currentTime = Date.now();
-            if ((keys.Space || touchControls.shoot) && currentTime - this.lastShotTime > this.shootDelay) {
-                this.shoot();
-                this.lastShotTime = currentTime;
+            function drawEnemy(ctx, x, y, w, h) {
+                ctx.save(); ctx.translate(x, y); ctx.scale(w / 60, h / 60);
+                ctx.fillStyle = '#ff3333';
+                ctx.beginPath(); ctx.moveTo(5, 15); ctx.lineTo(55, 15); ctx.lineTo(40, 50); ctx.lineTo(20, 50); ctx.fill();
+                ctx.fillStyle = 'yellow'; ctx.beginPath(); ctx.arc(20, 35, 5, 0, Math.PI * 2); ctx.arc(40, 35, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
             }
 
-            // 무적 시간 처리
-            if (this.isInvulnerable) {
-                this.invulnerableTimer--;
-                if (this.invulnerableTimer <= 0) {
-                    this.isInvulnerable = false;
+            function drawBullet(ctx, x, y, w, h) {
+                ctx.save(); ctx.translate(x, y); ctx.scale(w / 20, h / 40);
+                ctx.fillStyle = '#ffff00'; ctx.shadowBlur = 10; ctx.shadowColor = "orange";
+                ctx.fillRect(5, 5, 10, 30);
+                ctx.restore();
+            }
+
+            function drawBoss1(ctx, x, y, w, h) {
+                ctx.save(); ctx.translate(x, y); ctx.scale(w / 80, h / 80);
+                ctx.fillStyle = 'purple';
+                ctx.beginPath(); ctx.ellipse(40, 40, 35, 25, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#00ff00';
+                ctx.beginPath(); ctx.arc(25, 45, 5, 0, Math.PI * 2); ctx.arc(55, 45, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = 'darkmagenta'; ctx.fillRect(30, 15, 20, 15);
+                ctx.restore();
+            }
+
+            function drawBoss2(ctx, x, y, w, h) {
+                ctx.save(); ctx.translate(x, y); ctx.scale(w / 80, h / 80);
+                ctx.fillStyle = '#8B0000';
+                ctx.beginPath(); ctx.moveTo(40, 10); ctx.lineTo(75, 40); ctx.lineTo(60, 70); ctx.lineTo(20, 70); ctx.lineTo(5, 40); ctx.fill();
+                ctx.fillStyle = 'yellow';
+                ctx.beginPath(); ctx.moveTo(25, 50); ctx.lineTo(35, 45); ctx.lineTo(30, 55); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(55, 50); ctx.lineTo(45, 45); ctx.lineTo(50, 55); ctx.fill();
+                ctx.restore();
+            }
+
+            function drawBoss3(ctx, x, y, w, h) {
+                ctx.save(); ctx.translate(x, y); ctx.scale(w / 80, h / 80);
+                ctx.fillStyle = '#FFD700'; ctx.fillRect(10, 20, 60, 40);
+                ctx.beginPath(); ctx.moveTo(10, 20); ctx.lineTo(40, 5); ctx.lineTo(70, 20); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(10, 60); ctx.lineTo(40, 75); ctx.lineTo(70, 60); ctx.fill();
+                ctx.fillStyle = 'red'; ctx.beginPath(); ctx.arc(40, 40, 12, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(40, 40, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+            }
+
+            function drawExplosion(ctx, x, y, size, alpha) {
+                ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); 
+                ctx.fillStyle = '#ff8800'; ctx.beginPath();
+                const spikes = 8, outer = size / 2, inner = size / 4;
+                for (let i = 0; i < spikes * 2; i++) {
+                    let radius = i % 2 === 0 ? outer : inner;
+                    let angle = (i * Math.PI) / spikes;
+                    ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
                 }
-            }
-        }
-
-        shoot() {
-            // 총알 생성 및 배열 추가
-            bullets.push(new Bullet(this.x, this.y - this.height / 2));
-            
-            // 발사 이펙트
-            createParticles(this.x, this.y - this.height / 2, '#fbbf24', 3, 2);
-        }
-        
-        hit() {
-            if (this.isInvulnerable) return false;
-            
-            this.health--;
-            healthElement.innerText = this.health;
-            
-            // 피격 이펙트 (폭발)
-            createParticles(this.x, this.y, '#ef4444', 20, 5);
-            
-            if (this.health <= 0) {
-                gameOver();
-                return true;
-            } else {
-                // 무적 상태 부여
-                this.isInvulnerable = true;
-                this.invulnerableTimer = 100; // 약 1.5초 (60fps 기준)
-                return false;
-            }
-        }
-    }
-
-    // 플레이어 총알 클래스
-    class Bullet {
-        constructor(x, y) {
-            this.x = x;
-            this.y = y;
-            this.width = 4;
-            this.height = 15;
-            this.color = '#fbbf24'; // 노란색 총알
-            this.speed = 10;
-            this.markedForDeletion = false;
-        }
-
-        draw() {
-            ctx.fillStyle = this.color;
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = this.color;
-            // 둥근 캡 모양의 총알
-            ctx.beginPath();
-            ctx.roundRect(this.x - this.width/2, this.y, this.width, this.height, 2);
-            ctx.fill();
-            ctx.shadowBlur = 0; // 리셋
-        }
-
-        update() {
-            this.y -= this.speed;
-            // 화면 밖으로 나가면 삭제 표시
-            if (this.y < 0 - this.height) {
-                this.markedForDeletion = true;
-            }
-        }
-    }
-
-    // 적(외계 우주선) 클래스
-    class Enemy {
-        constructor() {
-            this.width = Math.random() * 20 + 30; // 30 ~ 50 크기
-            this.height = this.width;
-            this.x = Math.random() * (canvas.width - this.width) + this.width/2;
-            this.y = -this.height;
-            // 크기에 반비례하는 속도 (큰 적은 느리고, 작은 적은 빠름)
-            this.speed = (60 - this.width) / 10 + Math.random() * 2;
-            
-            // 색상 랜덤 지정 (빨강, 보라, 초록 계열)
-            const colors = ['#ef4444', '#a855f7', '#10b981'];
-            this.color = colors[Math.floor(Math.random() * colors.length)];
-            
-            // 체력 (크기에 비례)
-            this.hp = Math.floor(this.width / 15);
-            this.markedForDeletion = false;
-            
-            // 움직임 패턴 위한 변수 (좌우 흔들림)
-            this.angle = 0;
-            this.angleSpeed = Math.random() * 0.1 + 0.05;
-            this.amplitude = Math.random() * 2;
-        }
-
-        draw() {
-            ctx.save();
-            ctx.translate(this.x, this.y);
-            
-            // 둥근 다이아몬드 형태의 적
-            ctx.beginPath();
-            ctx.moveTo(0, -this.height/2);
-            ctx.lineTo(this.width/2, 0);
-            ctx.lineTo(0, this.height/2);
-            ctx.lineTo(-this.width/2, 0);
-            ctx.closePath();
-            
-            // 테두리
-            ctx.strokeStyle = this.color;
-            ctx.lineWidth = 3;
-            ctx.stroke();
-            
-            // 내부 채우기 (약간 투명하게)
-            ctx.fillStyle = this.color;
-            ctx.globalAlpha = 0.5;
-            ctx.fill();
-            
-            // 엔진 불꽃 (위쪽 방향)
-            ctx.globalAlpha = 1;
-            ctx.beginPath();
-            ctx.arc(0, -this.height/2 - 2, 4, 0, Math.PI, true);
-            ctx.fillStyle = '#fde047';
-            ctx.fill();
-            
-            ctx.restore();
-        }
-
-        update() {
-            // 아래로 이동하며 좌우로 살짝 흔들림
-            this.y += this.speed;
-            this.angle += this.angleSpeed;
-            this.x += Math.sin(this.angle) * this.amplitude;
-            
-            // 화면 밖으로 나가면 삭제 및 플레이어 체력 감소 페널티? (선택사항, 일단은 삭제만)
-            if (this.y > canvas.height + this.height) {
-                this.markedForDeletion = true;
-            }
-        }
-        
-        hit() {
-            this.hp--;
-            // 피격 파티클 약하게 생성
-            createParticles(this.x, this.y, '#ffffff', 3, 2);
-            
-            if(this.hp <= 0) {
-                this.markedForDeletion = true;
-                // 폭발 파티클
-                createParticles(this.x, this.y, this.color, 15, 4);
-                // 점수 증가 (크기가 작을수록, 즉 어려울수록 점수가 높음)
-                const points = Math.floor((60 - this.width) * 10);
-                score += points;
-                scoreElement.innerText = score;
-                return true;
-            }
-            return false;
-        }
-    }
-
-    // 파티클 (폭발 이펙트 등) 클래스
-    class Particle {
-        constructor(x, y, color, sizeMultiplier = 1) {
-            this.x = x;
-            this.y = y;
-            this.color = color;
-            this.size = Math.random() * 3 * sizeMultiplier + 1;
-            this.speedX = Math.random() * 6 - 3; // -3 ~ 3
-            this.speedY = Math.random() * 6 - 3;
-            this.life = 1.0; // 1.0 ~ 0.0 투명도
-            this.decay = Math.random() * 0.05 + 0.02; // 줄어드는 속도
-            this.markedForDeletion = false;
-        }
-
-        draw() {
-            ctx.save();
-            ctx.globalAlpha = this.life;
-            ctx.fillStyle = this.color;
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        }
-
-        update() {
-            this.x += this.speedX;
-            this.y += this.speedY;
-            this.life -= this.decay;
-            if (this.life <= 0.1) {
-                this.markedForDeletion = true;
-            }
-        }
-    }
-
-    // 파티클 생성 헬퍼 함수
-    function createParticles(x, y, color, count, sizeMultiplier = 1) {
-        for (let i = 0; i < count; i++) {
-            particles.push(new Particle(x, y, color, sizeMultiplier));
-        }
-    }
-
-    let player;
-
-    // 초기화 및 게임 시작 함수
-    function init() {
-        player = new Player();
-        bullets = [];
-        enemies = [];
-        particles = [];
-        score = 0;
-        frameCount = 0;
-        scoreElement.innerText = score;
-        healthElement.innerText = player.health;
-        
-        // 화면 리사이즈 다시 체크
-        resizeCanvas();
-        // 플레이어 위치 초기화
-        player.x = canvas.width / 2;
-        player.y = canvas.height - player.height - 20;
-
-        startScreen.classList.add('hidden');
-        gameOverScreen.classList.add('hidden');
-        isGameRunning = true;
-        animate();
-    }
-
-    // 게임 오버 처리
-    function gameOver() {
-        isGameRunning = false;
-        cancelAnimationFrame(animationId);
-        finalScoreElement.innerText = score;
-        gameOverScreen.classList.remove('hidden');
-    }
-
-    // 충돌 감지 함수 (원형 충돌 또는 AABB 활용 가능, 여기선 간단한 거리 기반 충돌)
-    function checkCollision(rect1, rect2) {
-        // 중심점 간의 거리 계산
-        const dx = rect1.x - rect2.x;
-        const dy = rect1.y - rect2.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        // 두 객체의 '반경' 합보다 거리가 짧으면 충돌 (간단한 원형 충돌 판정)
-        const minDistance = (rect1.width / 2) + (rect2.width / 2) * 0.8; // 판정을 조금 관대하게
-        
-        return distance < minDistance;
-    }
-
-    // 메인 게임 루프
-    function animate() {
-        if (!isGameRunning) return;
-        
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // 배경 별 그리기 및 이동 (패럴랙스 스크롤링 효과)
-        ctx.fillStyle = 'white';
-        stars.forEach(star => {
-            star.y += star.speed;
-            if(star.y > canvas.height) {
-                star.y = 0;
-                star.x = Math.random() * canvas.width;
-            }
-            ctx.globalAlpha = star.speed / 2; // 빠른 별일수록 밝게
-            ctx.beginPath();
-            ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-            ctx.fill();
-        });
-        ctx.globalAlpha = 1.0; // 알파 리셋
-
-        // 플레이어 업데이트 및 그리기
-        player.update();
-        player.draw();
-
-        // 총알 업데이트 및 그리기
-        bullets.forEach((bullet, index) => {
-            bullet.update();
-            bullet.draw();
-        });
-
-        // 적 생성 로직 (시간이 지날수록 생성 주기 짧아짐, 난이도 증가)
-        let spawnRate = Math.max(20, 100 - Math.floor(score / 200)); 
-        if (frameCount % spawnRate === 0) {
-            enemies.push(new Enemy());
-        }
-
-        // 적 업데이트, 그리기 및 충돌 판정
-        enemies.forEach((enemy, eIndex) => {
-            enemy.update();
-            enemy.draw();
-
-            // 플레이어와 적 충돌 검사
-            if (checkCollision(player, enemy)) {
-                enemy.markedForDeletion = true;
-                player.hit();
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = 'yellow'; ctx.beginPath(); ctx.arc(0, 0, inner * 0.8, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
             }
 
-            // 총알과 적 충돌 검사
-            bullets.forEach((bullet, bIndex) => {
-                if (checkCollision(bullet, enemy)) {
-                    bullet.markedForDeletion = true;
-                    enemy.hit(); // 적 체력 감소 및 파괴 처리
-                }
+            let score = 0, lives = 3, bombs = 3, gameOver = false, gameStarted = false; 
+            const player = { x: canvas.width / 2 - 15, y: canvas.height - 50, width: 30, height: 30, speed: 6 };
+
+            let bullets = [], enemies = [], explosions = [], bossBullets = [], stars = [], planets = [], items = [];
+            let weaponLevel = 1, invincibilityTimer = 0; 
+
+            // ⭐ 난이도 중간 설정
+            const bossStages = [
+                { scoreReq: 200, hp: 200, speedX: 3, drawFunc: drawBoss1, bulletFreq: 0.05, spread: 3, bulletSpeed: 4.5 },  
+                { scoreReq: 600, hp: 500, speedX: 4.5, drawFunc: drawBoss2, bulletFreq: 0.10, spread: 5, bulletSpeed: 6 }, 
+                { scoreReq: 1200, hp: 1000, speedX: 6, drawFunc: drawBoss3, bulletFreq: 0.20, spread: 7, bulletSpeed: 7.5 }  
+            ];
+
+            let currentBossIndex = 0, boss = null, bossActive = false, gameClear = false, flashAlpha = 0;
+            let rightPressed = false, leftPressed = false, upPressed = false, downPressed = false;
+            let spacePressed = false, fireCooldown = 0;     
+
+            for (let i = 0; i < 100; i++) {
+                stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 2 + 0.5, speed: Math.random() * 3 + 1, alpha: Math.random() });
+            }
+
+            startBtn.addEventListener('click', () => {
+                lobbyScreen.style.display = 'none'; 
+                uiBoard.style.display = 'block';    
+                canvas.style.display = 'block'; 
+                mobileControls.style.display = 'flex'; 
+                instructions.style.display = 'block'; 
+                gameStarted = true; updateUI(); gameLoop(); 
             });
-        });
 
-        // 파티클 업데이트 및 그리기
-        particles.forEach(particle => {
-            particle.update();
-            particle.draw();
-        });
+            restartBtn.addEventListener('click', () => { location.reload(); });
 
-        // 삭제 표시된 객체들 배열에서 제거 (가비지 컬렉션 최적화)
-        bullets = bullets.filter(bullet => !bullet.markedForDeletion);
-        enemies = enemies.filter(enemy => !enemy.markedForDeletion);
-        particles = particles.filter(particle => !particle.markedForDeletion);
+            document.addEventListener('keydown', (e) => {
+                if (!gameStarted) return; 
+                if ([' ', 'ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown'].includes(e.key)) e.preventDefault();
+                if (e.key === 'ArrowRight') rightPressed = true;
+                if (e.key === 'ArrowLeft') leftPressed = true;
+                if (e.key === 'ArrowUp') upPressed = true;
+                if (e.key === 'ArrowDown') downPressed = true;
+                if (e.key === ' ') spacePressed = true;
+                if ((e.key === 'b' || e.key === 'B' || e.key === 'ㅠ') && !gameOver && !gameClear && bombs > 0) useBomb();
+            }, { passive: false });
 
-        frameCount++;
-        animationId = requestAnimationFrame(animate);
-    }
+            document.addEventListener('keyup', (e) => {
+                if (!gameStarted) return;
+                if (e.key === 'ArrowRight') rightPressed = false;
+                if (e.key === 'ArrowLeft') leftPressed = false;
+                if (e.key === 'ArrowUp') upPressed = false;
+                if (e.key === 'ArrowDown') downPressed = false;
+                if (e.key === ' ') spacePressed = false;
+            });
 
-    // 키보드 이벤트 리스너 등록
-    window.addEventListener('keydown', (e) => {
-        if (keys.hasOwnProperty(e.code)) {
-            keys[e.code] = true;
-            // 스페이스바 등 스크롤 방지
-            if(e.code === 'Space' || e.code.startsWith('Arrow')) {
-                e.preventDefault();
+            const btnLeft = document.getElementById('btnLeft'), btnRight = document.getElementById('btnRight');
+            const btnUp = document.getElementById('btnUp'), btnDown = document.getElementById('btnDown');
+            const btnFire = document.getElementById('btnFire'), btnBomb = document.getElementById('btnBomb');
+
+            const addTouch = (btn, pressTrue, pressFalse) => {
+                btn.addEventListener('touchstart', (e) => { e.preventDefault(); pressTrue(); });
+                btn.addEventListener('touchend', (e) => { e.preventDefault(); pressFalse(); });
+                btn.addEventListener('mousedown', pressTrue); btn.addEventListener('mouseup', pressFalse); btn.addEventListener('mouseleave', pressFalse);
+            };
+            addTouch(btnLeft, () => leftPressed = true, () => leftPressed = false);
+            addTouch(btnRight, () => rightPressed = true, () => rightPressed = false);
+            addTouch(btnUp, () => upPressed = true, () => upPressed = false);
+            addTouch(btnDown, () => downPressed = true, () => downPressed = false);
+            addTouch(btnFire, () => spacePressed = true, () => spacePressed = false);
+
+            const triggerBomb = (e) => { if(e) e.preventDefault(); if(gameStarted && !gameOver && !gameClear && bombs > 0) useBomb(); };
+            btnBomb.addEventListener('touchstart', triggerBomb); btnBomb.addEventListener('mousedown', triggerBomb);
+
+            function updateUI() {
+                let hearts = ''; for (let i = 0; i < lives; i++) hearts += '❤️';
+                let bombIcons = ''; for (let i = 0; i < bombs; i++) bombIcons += '💣';
+                scoreElement.innerText = `점수: ${score}`;
+                lifeElement.innerText = `생명: ${hearts}`;
+                bombElement.innerText = `폭탄(B): ${bombIcons}`;
             }
-        }
-    });
 
-    window.addEventListener('keyup', (e) => {
-        if (keys.hasOwnProperty(e.code)) {
-            keys[e.code] = false;
-        }
-    });
-
-    // 버튼 이벤트 리스너
-    startBtn.addEventListener('click', init);
-    restartBtn.addEventListener('click', init);
-    
-    // === 모바일 터치 컨트롤 이벤트 리스너 설정 ===
-    const setupTouchBtn = (id, action) => {
-        const btn = document.getElementById(id);
-        if(!btn) return;
-        
-        // 터치 시작
-        btn.addEventListener('touchstart', (e) => {
-            e.preventDefault(); // 기본 터치 동작(스크롤, 확대 등) 방지
-            if(action === 'Space') {
-                touchControls.shoot = true;
-            } else {
-                touchControls[action] = true;
+            function useBomb() {
+                bombs--; updateUI(); flashAlpha = 1; 
+                enemies.forEach(enemy => { 
+                    explosions.push({ x: enemy.x + enemy.width/2, y: enemy.y + enemy.height/2, timer: 15, maxTimer: 15, size: 1 });
+                    spawnItemFromEnemy(enemy.x, enemy.y); score += 10; 
+                });
+                enemies = []; bossBullets = []; 
+                if (bossActive && boss) {
+                    boss.hp -= 50; 
+                    explosions.push({ x: boss.x + boss.width/2, y: boss.y + boss.height/2, timer: 15, maxTimer: 15, size: 3 });
+                    if (boss.hp <= 0) defeatBoss();
+                }
             }
-        });
-        
-        // 터치 종료
-        btn.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            if(action === 'Space') {
-                touchControls.shoot = false;
-            } else {
-                touchControls[action] = false;
-            }
-        });
-        
-        // 터치 영역 벗어남 (캔슬)
-        btn.addEventListener('touchcancel', (e) => {
-             e.preventDefault();
-             if(action === 'Space') {
-                touchControls.shoot = false;
-            } else {
-                touchControls[action] = false;
-            }
-        });
-    };
 
-    setupTouchBtn('btn-up', 'up');
-    setupTouchBtn('btn-down', 'down');
-    setupTouchBtn('btn-left', 'left');
-    setupTouchBtn('btn-right', 'right');
-    setupTouchBtn('btn-shoot', 'Space');
+            function getRandomItemType() {
+                let rand = Math.random();
+                if (rand < 0.15) return 'life';      
+                if (rand < 0.30) return 'bomb';      
+                if (rand < 0.45) return 'shield';    
+                if (rand < 0.60) return 'speed';     
+                if (rand < 0.75) return 'coin';      
+                return 'power';                      
+            }
 
-</script>
+            function spawnItemFromEnemy(x, y) {
+                if (Math.random() < 0.20) items.push({ x: x, y: y, width: 30, height: 30, speed: 2, type: getRandomItemType() });
+            }
+
+            let itemTimer = 0;
+            function spawnItem() {
+                itemTimer++;
+                if (itemTimer % 350 === 0) items.push({ x: Math.random() * (canvas.width - 30), y: -30, width: 30, height: 30, speed: 2, type: getRandomItemType() });
+            }
+
+            let enemyTimer = 0;
+            function spawnEnemy() {
+                if (!bossActive) {
+                    enemyTimer++;
+                    if (enemyTimer % 30 === 0) enemies.push({ x: Math.random() * (canvas.width - 30), y: -30, width: 30, height: 30, speed: 2 + Math.random() * 2.5 });
+                }
+            }
+
+            function spawnPlanet() {
+                if (Math.random() < 0.01 && planets.length < 2) planets.push({ x: Math.random() * canvas.width, y: -100, radius: Math.random() * 40 + 20, speed: Math.random() * 0.5 + 0.2, color: `hsl(${Math.random() * 360}, 60%, 30%)` });
+            }
+
+            function spawnBoss(stageData) {
+                bossActive = true;
+                boss = { 
+                    x: canvas.width / 2 - 40, y: -100, width: 80, height: 80, 
+                    hp: stageData.hp, maxHp: stageData.hp, speedX: stageData.speedX, speedY: 2.5,
+                    drawFunc: stageData.drawFunc, bulletFreq: stageData.bulletFreq, spread: stageData.spread, bulletSpeed: stageData.bulletSpeed
+                };
+            }
+
+            function defeatBoss() {
+                explosions.push({ x: boss.x + boss.width/2, y: boss.y + boss.height/2, timer: 15, maxTimer: 15, size: 5 });
+                score += 300 * (currentBossIndex + 1); currentBossIndex++; 
+                bossActive = false; boss = null; bossBullets = []; 
+                
+                if (currentBossIndex >= bossStages.length && !gameClear) {
+                    gameClear = true;
+                    setTimeout(() => { 
+                        resultScreen.style.display = 'flex';
+                        resultTitle.innerText = '🌟 GOD OF SPACE 🌟';
+                        resultTitle.style.color = '#FFD700';
+                        resultTitle.style.textShadow = '0 0 20px #FFA500';
+                        resultScore.innerText = `최종 점수: ${score}점`;
+                    }, 1500);
+                }
+                updateUI();
+            }
+
+            function isColliding(rect1, rect2) {
+                return ( rect1.x < rect2.x + rect2.width && rect1.x + rect1.width > rect2.x && rect1.y < rect2.y + rect2.height && rect1.y + rect1.height > rect2.y );
+            }
+
+            function playerTakeDamage() {
+                explosions.push({ x: player.x + 15, y: player.y + 15, timer: 15, maxTimer: 15, size: 1 });
+                lives--; weaponLevel = 1; player.speed = 6; updateUI();
+                
+                if (lives <= 0 && !gameOver) {
+                    gameOver = true;
+                    setTimeout(() => { 
+                        resultScreen.style.display = 'flex';
+                        resultTitle.innerText = '💀 YOU DIED 💀';
+                        resultTitle.style.color = '#ff3333';
+                        resultTitle.style.textShadow = '0 0 20px #ff0000';
+                        resultScore.innerText = `최종 점수: ${score}점`;
+                    }, 1000);
+                } else if (lives > 0) {
+                    invincibilityTimer = 60; 
+                }
+            }
+
+            function update() {
+                if (gameOver || gameClear) return;
+                
+                if (invincibilityTimer > 0) invincibilityTimer--;
+
+                if (rightPressed && player.x < canvas.width - player.width) player.x += player.speed;
+                if (leftPressed && player.x > 0) player.x -= player.speed;
+                if (upPressed && player.y > 0) player.y -= player.speed;
+                if (downPressed && player.y < canvas.height - player.height) player.y += player.speed;
+                
+                if (fireCooldown > 0) fireCooldown--; 
+                if (spacePressed && fireCooldown <= 0) {
+                    if (weaponLevel === 1) {
+                        bullets.push({ x: player.x + player.width / 2 - 5, y: player.y, width: 10, height: 20, speed: 8, speedX: 0 });
+                    } else if (weaponLevel === 2) {
+                        bullets.push({ x: player.x, y: player.y, width: 10, height: 20, speed: 8, speedX: 0 });
+                        bullets.push({ x: player.x + player.width - 10, y: player.y, width: 10, height: 20, speed: 8, speedX: 0 });
+                    } else {
+                        bullets.push({ x: player.x + player.width / 2 - 5, y: player.y, width: 10, height: 20, speed: 8, speedX: 0 });
+                        bullets.push({ x: player.x, y: player.y, width: 10, height: 20, speed: 8, speedX: -2 }); 
+                        bullets.push({ x: player.x + player.width - 10, y: player.y, width: 10, height: 20, speed: 8, speedX: 2 }); 
+                    }
+                    fireCooldown = 5; 
+                }
+                if (flashAlpha > 0) flashAlpha -= 0.05;
+
+                for (let i = 0; i < stars.length; i++) {
+                    stars[i].y += stars[i].speed; if (stars[i].y > canvas.height) { stars[i].y = 0; stars[i].x = Math.random() * canvas.width; }
+                }
+                spawnPlanet();
+                for (let i = 0; i < planets.length; i++) {
+                    planets[i].y += planets[i].speed; if (planets[i].y - planets[i].radius > canvas.height) { planets.splice(i, 1); i--; }
+                }
+
+                if (currentBossIndex < bossStages.length && score >= bossStages[currentBossIndex].scoreReq && !bossActive) spawnBoss(bossStages[currentBossIndex]);
+                
+                for (let i = 0; i < bullets.length; i++) {
+                    bullets[i].y -= bullets[i].speed; bullets[i].x += bullets[i].speedX; 
+                    if (bullets[i].y < 0 || bullets[i].x < 0 || bullets[i].x > canvas.width) { bullets.splice(i, 1); i--; }
+                }
+                
+                for (let i = 0; i < explosions.length; i++) {
+                    explosions[i].timer--; if (explosions[i].timer <= 0) { explosions.splice(i, 1); i--; }
+                }
+
+                spawnItem();
+                for (let i = 0; i < items.length; i++) {
+                    items[i].y += items[i].speed;
+                    if (isColliding(player, items[i])) {
+                        if (items[i].type === 'life') lives++;
+                        else if (items[i].type === 'bomb') bombs++;
+                        else if (items[i].type === 'power') weaponLevel = Math.min(weaponLevel + 1, 3); 
+                        else if (items[i].type === 'shield') invincibilityTimer = 300; 
+                        else if (items[i].type === 'speed') player.speed = Math.min(player.speed + 1.5, 12); 
+                        else if (items[i].type === 'coin') score += 500; 
+                        
+                        explosions.push({ x: items[i].x + 15, y: items[i].y + 15, timer: 10, maxTimer: 10, size: 0.5 });
+                        updateUI(); items.splice(i, 1); i--; continue;
+                    }
+                    if (items[i].y > canvas.height) { items.splice(i, 1); i--; }
+                }
+
+                spawnEnemy();
+                for (let i = 0; i < enemies.length; i++) {
+                    enemies[i].y += enemies[i].speed;
+                    if (isColliding(player, enemies[i])) { 
+                        if (invincibilityTimer <= 0) playerTakeDamage(); 
+                        else { 
+                            explosions.push({ x: enemies[i].x + 15, y: enemies[i].y + 15, timer: 15, maxTimer: 15, size: 1 });
+                            score += 10; updateUI(); 
+                        }
+                        enemies.splice(i, 1); i--; continue; 
+                    }
+
+                    let enemyDestroyed = false;
+                    for (let j = 0; j < bullets.length; j++) {
+                        if (isColliding(bullets[j], enemies[i])) {
+                            explosions.push({ x: enemies[i].x + 15, y: enemies[i].y + 15, timer: 15, maxTimer: 15, size: 1 });
+                            spawnItemFromEnemy(enemies[i].x, enemies[i].y);
+                            enemies.splice(i, 1); bullets.splice(j, 1); score += 10; updateUI(); enemyDestroyed = true; break;
+                        }
+                    }
+                    if (enemyDestroyed) { i--; continue; }
+                    if (enemies[i] && enemies[i].y > canvas.height) { enemies.splice(i, 1); i--; }
+                }
+
+                if (bossActive && boss) {
+                    if (boss.y < 50) boss.y += boss.speedY; 
+                    else {
+                        boss.x += boss.speedX;
+                        if (boss.x <= 0 || boss.x + boss.width >= canvas.width) boss.speedX *= -1;
+                        if (Math.random() < boss.bulletFreq) {
+                            const cx = boss.x + boss.width / 2 - 5, by = boss.y + boss.height, sy = boss.bulletSpeed;
+                            if (boss.spread === 1) {
+                                bossBullets.push({ x: cx, y: by, width: 10, height: 10, speedX: 0, speedY: sy });
+                            } else if (boss.spread === 3) {
+                                bossBullets.push({ x: cx, y: by, width: 10, height: 10, speedX: -2.5, speedY: sy });
+                                bossBullets.push({ x: cx, y: by, width: 10, height: 10, speedX: 0, speedY: sy });
+                                bossBullets.push({ x: cx, y: by, width: 10, height: 10, speedX: 2.5, speedY: sy });
+                            } else if (boss.spread === 5) {
+                                for(let k = -2; k <= 2; k++) bossBullets.push({ x: cx, y: by, width: 10, height: 10, speedX: k * 2, speedY: sy });
+                            } else if (boss.spread === 7) { 
+                                for(let k = -3; k <= 3; k++) bossBullets.push({ x: cx, y: by, width: 10, height: 10, speedX: k * 2, speedY: sy });
+                            }
+                        }
+                    }
+                    for (let j = 0; j < bullets.length; j++) {
+                        if (isColliding(bullets[j], boss)) {
+                            boss.hp -= 10; 
+                            explosions.push({ x: bullets[j].x, y: bullets[j].y, timer: 5, maxTimer: 5, size: 0.5 });
+                            bullets.splice(j, 1); j--;
+                            if (boss.hp <= 0) { defeatBoss(); break; }
+                        }
+                    }
+                    if (boss && isColliding(player, boss) && invincibilityTimer <= 0) playerTakeDamage();
+                }
+                
+                for (let i = 0; i < bossBullets.length; i++) {
+                    bossBullets[i].x += bossBullets[i].speedX; bossBullets[i].y += bossBullets[i].speedY;
+                    if (isColliding(bossBullets[i], player)) { 
+                        bossBullets.splice(i, 1); if (invincibilityTimer <= 0) playerTakeDamage(); 
+                        i--; continue; 
+                    }
+                    if (bossBullets[i] && bossBullets[i].y > canvas.height) { bossBullets.splice(i, 1); i--; }
+                }
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                stars.forEach(star => { ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`; ctx.beginPath(); ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2); ctx.fill(); });
+                planets.forEach(planet => {
+                    ctx.fillStyle = planet.color; ctx.beginPath(); ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.arc(planet.x - planet.radius * 0.3, planet.y - planet.radius * 0.3, planet.radius * 0.2, 0, Math.PI * 2); ctx.fill();
+                });
+
+                if (!gameOver) {
+                    drawPlayer(ctx, player.x, player.y, player.width, player.height);
+                    if (invincibilityTimer > 0) {
+                        ctx.beginPath(); ctx.arc(player.x + player.width / 2, player.y + player.height / 2, player.width, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(0, 255, 255, ${0.3 + Math.sin(Date.now() / 100) * 0.2})`; ctx.fill();
+                        ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 2; ctx.stroke();
+                    }
+                }
+                
+                bullets.forEach(b => drawBullet(ctx, b.x, b.y, b.width, b.height));
+                enemies.forEach(e => drawEnemy(ctx, e.x, e.y, e.width, e.height));
+
+                items.forEach(item => {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'; ctx.beginPath(); ctx.arc(item.x + 15, item.y + 15, 15, 0, Math.PI * 2); ctx.fill();
+                    ctx.font = '18px Arial'; ctx.textAlign = 'center';
+                    let icon = '⚡'; 
+                    if (item.type === 'life') icon = '❤️'; else if (item.type === 'bomb') icon = '💣';
+                    else if (item.type === 'shield') icon = '🛡️'; else if (item.type === 'speed') icon = '💨'; else if (item.type === 'coin') icon = '💰';
+                    ctx.fillText(icon, item.x + 15, item.y + 21);
+                });
+
+                ctx.fillStyle = '#ff00ff';
+                bossBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x + b.width/2, b.y + b.height/2, b.width/2, 0, Math.PI * 2); ctx.fill(); });
+
+                if (bossActive && boss) {
+                    boss.drawFunc(ctx, boss.x, boss.y, boss.width, boss.height);
+                    ctx.fillStyle = 'black'; ctx.fillRect(boss.x, boss.y - 15, boss.width, 10);
+                    ctx.fillStyle = 'red'; const hpWidth = (boss.hp / boss.maxHp) * boss.width;
+                    if(hpWidth > 0) ctx.fillRect(boss.x, boss.y - 15, hpWidth, 10);
+                    ctx.fillStyle = 'white'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
+                    ctx.fillText(`🔥 STAGE ${currentBossIndex + 1} BOSS 🔥`, boss.x + boss.width / 2, boss.y - 25);
+                }
+
+                explosions.forEach(exp => {
+                    const size = (exp.maxTimer - exp.timer) * 4 * exp.size; const alpha = exp.timer / exp.maxTimer;
+                    drawExplosion(ctx, exp.x + 15, exp.y + 15, size, alpha);
+                });
+
+                if (flashAlpha > 0) { ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+
+                if (gameOver && resultScreen.style.display === 'none') {
+                    ctx.fillStyle = 'red'; ctx.font = 'bold 45px Arial'; ctx.textAlign = 'center'; 
+                    ctx.fillText('YOU DIED', canvas.width / 2, canvas.height / 2);
+                }
+            }
+
+            function gameLoop() { update(); draw(); if ((!gameOver && !gameClear) || explosions.length > 0) requestAnimationFrame(gameLoop); }
+        };
+    </script>
 </body>
 </html>
