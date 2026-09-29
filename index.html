@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>우주 전투기 게임</title>
+    <!-- Tailwind CSS 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 게임 캔버스 기본 스타일링 */
+        body {
+            margin: 0;
+            overflow: hidden; /* 스크롤바 숨김 */
+            background-color: #0f172a; /* 어두운 우주 배경색 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            touch-action: none; /* 모바일에서 화면 스크롤 방지 */
+        }
+        
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            display: block;
+            background: linear-gradient(to bottom, #0f172a 0%, #1e1b4b 100%);
+            border-radius: 8px;
+        }
+
+        /* UI 오버레이 스타일링 */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 10;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #score-board {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 5;
+            color: #38bdf8;
+        }
+        
+        #health-board {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 5;
+            color: #ef4444;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+        }
+        
+        /* 모바일 터치 컨트롤 UI */
+        #mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-sizing: border-box;
+            z-index: 5;
+            opacity: 0.5;
+        }
+        
+        .d-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 50px);
+            grid-template-rows: repeat(3, 50px);
+            gap: 5px;
+        }
+        
+        .control-btn {
+            background-color: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+        }
+        
+        .control-btn:active {
+            background-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        #btn-up { grid-column: 2; grid-row: 1; }
+        #btn-left { grid-column: 1; grid-row: 2; }
+        #btn-right { grid-column: 3; grid-row: 2; }
+        #btn-down { grid-column: 2; grid-row: 3; }
+        
+        #action-buttons {
+            display: flex;
+            align-items: flex-end;
+        }
+        
+        #btn-shoot {
+            width: 70px;
+            height: 70px;
+            background-color: rgba(239, 68, 68, 0.3);
+            border: 2px solid rgba(239, 68, 68, 0.6);
+            border-radius: 50%;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+        }
+        #btn-shoot:active {
+            background-color: rgba(239, 68, 68, 0.6);
+        }
+        
+        /* 데스크톱에서는 터치 컨트롤 숨김 */
+        @media (min-width: 768px) {
+            #mobile-controls {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="score-board">점수: <span id="score">0</span></div>
+    <div id="health-board">❤️ <span id="health">3</span></div>
+    
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    
+    <!-- 시작 화면 -->
+    <div id="startScreen" class="overlay">
+        <h1 class="text-5xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 text-center">우주 방위대</h1>
+        <p class="mb-2 text-gray-300">방향키(←,↑,→,↓) 로 이동</p>
+        <p class="mb-8 text-gray-300">스페이스바(Space) 로 발사</p>
+        <button id="startBtn" class="btn">게임 시작</button>
+    </div>
+
+    <!-- 게임 오버 화면 -->
+    <div id="gameOverScreen" class="overlay hidden">
+        <h1 class="text-5xl font-bold mb-4 text-red-500">임무 실패</h1>
+        <p class="text-2xl mb-6">최종 점수: <span id="finalScore" class="font-bold text-yellow-400">0</span></p>
+        <button id="restartBtn" class="btn">다시 시작</button>
+    </div>
+    
+    <!-- 모바일 터치 컨트롤 (작은 화면에서만 보임) -->
+    <div id="mobile-controls">
+        <div class="d-pad">
+            <div id="btn-up" class="control-btn">↑</div>
+            <div id="btn-left" class="control-btn">←</div>
+            <div id="btn-right" class="control-btn">→</div>
+            <div id="btn-down" class="control-btn">↓</div>
+        </div>
+        <div id="action-buttons">
+            <div id="btn-shoot">FIRE</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // UI 요소
+    const scoreElement = document.getElementById('score');
+    const healthElement = document.getElementById('health');
+    const startScreen = document.getElementById('startScreen');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const finalScoreElement = document.getElementById('finalScore');
+    const startBtn = document.getElementById('startBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const gameContainer = document.getElementById('game-container');
+
+    // 반응형 캔버스 크기 조정
+    function resizeCanvas() {
+        const maxWidth = Math.min(800, window.innerWidth - 20);
+        const maxHeight = Math.min(600, window.innerHeight - 20);
+        
+        // 4:3 비율 유지 (선택사항, 화면에 꽉 차게 하려면 주석 처리)
+        // const ratio = 4 / 3;
+        // if (maxWidth / maxHeight > ratio) {
+        //     canvas.width = maxHeight * ratio;
+        //     canvas.height = maxHeight;
+        // } else {
+        //     canvas.width = maxWidth;
+        //     canvas.height = maxWidth / ratio;
+        // }
+        
+        canvas.width = maxWidth;
+        canvas.height = maxHeight;
+        gameContainer.style.width = canvas.width + 'px';
+        gameContainer.style.height = canvas.height + 'px';
+    }
+    
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas(); // 초기 크기 설정
+
+    // 게임 상태 변수
+    let animationId;
+    let isGameRunning = false;
+    let score = 0;
+    let frameCount = 0;
+
+    // 키보드 입력 상태 관리
+    const keys = {
+        ArrowUp: false,
+        ArrowDown: false,
+        ArrowLeft: false,
+        ArrowRight: false,
+        Space: false
+    };
+
+    // 터치 입력 상태 관리 (모바일)
+    const touchControls = {
+        up: false,
+        down: false,
+        left: false,
+        right: false,
+        shoot: false
+    };
+
+    // 게임 객체 배열
+    let bullets = [];
+    let enemies = [];
+    let particles = [];
+    let stars = [];
+
+    // 배경 별 초기화
+    for(let i = 0; i < 100; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            size: Math.random() * 2,
+            speed: Math.random() * 1 + 0.1
+        });
+    }
+
+    // 플레이어(전투기) 클래스
+    class Player {
+        constructor() {
+            this.width = 40;
+            this.height = 40;
+            this.x = canvas.width / 2;
+            this.y = canvas.height - this.height - 20;
+            this.color = '#38bdf8'; // 기본 색상
+            this.speed = 5;
+            this.health = 3;
+            this.isInvulnerable = false;
+            this.invulnerableTimer = 0;
+            this.lastShotTime = 0;
+            this.shootDelay = 200; // 발사 딜레이 (ms)
+        }
+
+        draw() {
+            ctx.save();
+            // 무적 상태 깜빡임 효과
+            if (this.isInvulnerable) {
+                ctx.globalAlpha = Math.sin(Date.now() / 50) * 0.5 + 0.5;
+            }
+
+            // 전투기 형태 그리기 (간단한 삼각형 베이스)
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y - this.height / 2); // 기수 (앞부분)
+            ctx.lineTo(this.x + this.width / 2, this.y + this.height / 2); // 우측 날개
+            ctx.lineTo(this.x, this.y + this.height / 3); // 후방 엔진부
+            ctx.lineTo(this.x - this.width / 2, this.y + this.height / 2); // 좌측 날개
+            ctx.closePath();
+            
+            // 그라데이션 적용
+            let gradient = ctx.createLinearGradient(this.x, this.y - this.height/2, this.x, this.y + this.height/2);
+            gradient.addColorStop(0, '#7dd3fc');
+            gradient.addColorStop(1, '#0284c7');
+            
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            // 엔진 불꽃 그리기 (움직일 때)
+            if (keys.ArrowUp || touchControls.up) {
+                ctx.beginPath();
+                ctx.moveTo(this.x - 5, this.y + this.height / 3);
+                ctx.lineTo(this.x + 5, this.y + this.height / 3);
+                ctx.lineTo(this.x, this.y + this.height / 2 + Math.random() * 15 + 10);
+                ctx.fillStyle = '#f97316'; // 주황색 불꽃
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        update() {
+            // 이동 로직 (키보드 또는 터치)
+            if ((keys.ArrowLeft || touchControls.left) && this.x - this.width / 2 > 0) this.x -= this.speed;
+            if ((keys.ArrowRight || touchControls.right) && this.x + this.width / 2 < canvas.width) this.x += this.speed;
+            if ((keys.ArrowUp || touchControls.up) && this.y - this.height / 2 > 0) this.y -= this.speed;
+            if ((keys.ArrowDown || touchControls.down) && this.y + this.height / 2 < canvas.height) this.y += this.speed;
+
+            // 발사 로직
+            const currentTime = Date.now();
+            if ((keys.Space || touchControls.shoot) && currentTime - this.lastShotTime > this.shootDelay) {
+                this.shoot();
+                this.lastShotTime = currentTime;
+            }
+
+            // 무적 시간 처리
+            if (this.isInvulnerable) {
+                this.invulnerableTimer--;
+                if (this.invulnerableTimer <= 0) {
+                    this.isInvulnerable = false;
+                }
+            }
+        }
+
+        shoot() {
+            // 총알 생성 및 배열 추가
+            bullets.push(new Bullet(this.x, this.y - this.height / 2));
+            
+            // 발사 이펙트
+            createParticles(this.x, this.y - this.height / 2, '#fbbf24', 3, 2);
+        }
+        
+        hit() {
+            if (this.isInvulnerable) return false;
+            
+            this.health--;
+            healthElement.innerText = this.health;
+            
+            // 피격 이펙트 (폭발)
+            createParticles(this.x, this.y, '#ef4444', 20, 5);
+            
+            if (this.health <= 0) {
+                gameOver();
+                return true;
+            } else {
+                // 무적 상태 부여
+                this.isInvulnerable = true;
+                this.invulnerableTimer = 100; // 약 1.5초 (60fps 기준)
+                return false;
+            }
+        }
+    }
+
+    // 플레이어 총알 클래스
+    class Bullet {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            this.width = 4;
+            this.height = 15;
+            this.color = '#fbbf24'; // 노란색 총알
+            this.speed = 10;
+            this.markedForDeletion = false;
+        }
+
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = this.color;
+            // 둥근 캡 모양의 총알
+            ctx.beginPath();
+            ctx.roundRect(this.x - this.width/2, this.y, this.width, this.height, 2);
+            ctx.fill();
+            ctx.shadowBlur = 0; // 리셋
+        }
+
+        update() {
+            this.y -= this.speed;
+            // 화면 밖으로 나가면 삭제 표시
+            if (this.y < 0 - this.height) {
+                this.markedForDeletion = true;
+            }
+        }
+    }
+
+    // 적(외계 우주선) 클래스
+    class Enemy {
+        constructor() {
+            this.width = Math.random() * 20 + 30; // 30 ~ 50 크기
+            this.height = this.width;
+            this.x = Math.random() * (canvas.width - this.width) + this.width/2;
+            this.y = -this.height;
+            // 크기에 반비례하는 속도 (큰 적은 느리고, 작은 적은 빠름)
+            this.speed = (60 - this.width) / 10 + Math.random() * 2;
+            
+            // 색상 랜덤 지정 (빨강, 보라, 초록 계열)
+            const colors = ['#ef4444', '#a855f7', '#10b981'];
+            this.color = colors[Math.floor(Math.random() * colors.length)];
+            
+            // 체력 (크기에 비례)
+            this.hp = Math.floor(this.width / 15);
+            this.markedForDeletion = false;
+            
+            // 움직임 패턴 위한 변수 (좌우 흔들림)
+            this.angle = 0;
+            this.angleSpeed = Math.random() * 0.1 + 0.05;
+            this.amplitude = Math.random() * 2;
+        }
+
+        draw() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            
+            // 둥근 다이아몬드 형태의 적
+            ctx.beginPath();
+            ctx.moveTo(0, -this.height/2);
+            ctx.lineTo(this.width/2, 0);
+            ctx.lineTo(0, this.height/2);
+            ctx.lineTo(-this.width/2, 0);
+            ctx.closePath();
+            
+            // 테두리
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            // 내부 채우기 (약간 투명하게)
+            ctx.fillStyle = this.color;
+            ctx.globalAlpha = 0.5;
+            ctx.fill();
+            
+            // 엔진 불꽃 (위쪽 방향)
+            ctx.globalAlpha = 1;
+            ctx.beginPath();
+            ctx.arc(0, -this.height/2 - 2, 4, 0, Math.PI, true);
+            ctx.fillStyle = '#fde047';
+            ctx.fill();
+            
+            ctx.restore();
+        }
+
+        update() {
+            // 아래로 이동하며 좌우로 살짝 흔들림
+            this.y += this.speed;
+            this.angle += this.angleSpeed;
+            this.x += Math.sin(this.angle) * this.amplitude;
+            
+            // 화면 밖으로 나가면 삭제 및 플레이어 체력 감소 페널티? (선택사항, 일단은 삭제만)
+            if (this.y > canvas.height + this.height) {
+                this.markedForDeletion = true;
+            }
+        }
+        
+        hit() {
+            this.hp--;
+            // 피격 파티클 약하게 생성
+            createParticles(this.x, this.y, '#ffffff', 3, 2);
+            
+            if(this.hp <= 0) {
+                this.markedForDeletion = true;
+                // 폭발 파티클
+                createParticles(this.x, this.y, this.color, 15, 4);
+                // 점수 증가 (크기가 작을수록, 즉 어려울수록 점수가 높음)
+                const points = Math.floor((60 - this.width) * 10);
+                score += points;
+                scoreElement.innerText = score;
+                return true;
+            }
+            return false;
+        }
+    }
+
+    // 파티클 (폭발 이펙트 등) 클래스
+    class Particle {
+        constructor(x, y, color, sizeMultiplier = 1) {
+            this.x = x;
+            this.y = y;
+            this.color = color;
+            this.size = Math.random() * 3 * sizeMultiplier + 1;
+            this.speedX = Math.random() * 6 - 3; // -3 ~ 3
+            this.speedY = Math.random() * 6 - 3;
+            this.life = 1.0; // 1.0 ~ 0.0 투명도
+            this.decay = Math.random() * 0.05 + 0.02; // 줄어드는 속도
+            this.markedForDeletion = false;
+        }
+
+        draw() {
+            ctx.save();
+            ctx.globalAlpha = this.life;
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        update() {
+            this.x += this.speedX;
+            this.y += this.speedY;
+            this.life -= this.decay;
+            if (this.life <= 0.1) {
+                this.markedForDeletion = true;
+            }
+        }
+    }
+
+    // 파티클 생성 헬퍼 함수
+    function createParticles(x, y, color, count, sizeMultiplier = 1) {
+        for (let i = 0; i < count; i++) {
+            particles.push(new Particle(x, y, color, sizeMultiplier));
+        }
+    }
+
+    let player;
+
+    // 초기화 및 게임 시작 함수
+    function init() {
+        player = new Player();
+        bullets = [];
+        enemies = [];
+        particles = [];
+        score = 0;
+        frameCount = 0;
+        scoreElement.innerText = score;
+        healthElement.innerText = player.health;
+        
+        // 화면 리사이즈 다시 체크
+        resizeCanvas();
+        // 플레이어 위치 초기화
+        player.x = canvas.width / 2;
+        player.y = canvas.height - player.height - 20;
+
+        startScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+        isGameRunning = true;
+        animate();
+    }
+
+    // 게임 오버 처리
+    function gameOver() {
+        isGameRunning = false;
+        cancelAnimationFrame(animationId);
+        finalScoreElement.innerText = score;
+        gameOverScreen.classList.remove('hidden');
+    }
+
+    // 충돌 감지 함수 (원형 충돌 또는 AABB 활용 가능, 여기선 간단한 거리 기반 충돌)
+    function checkCollision(rect1, rect2) {
+        // 중심점 간의 거리 계산
+        const dx = rect1.x - rect2.x;
+        const dy = rect1.y - rect2.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // 두 객체의 '반경' 합보다 거리가 짧으면 충돌 (간단한 원형 충돌 판정)
+        const minDistance = (rect1.width / 2) + (rect2.width / 2) * 0.8; // 판정을 조금 관대하게
+        
+        return distance < minDistance;
+    }
+
+    // 메인 게임 루프
+    function animate() {
+        if (!isGameRunning) return;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 배경 별 그리기 및 이동 (패럴랙스 스크롤링 효과)
+        ctx.fillStyle = 'white';
+        stars.forEach(star => {
+            star.y += star.speed;
+            if(star.y > canvas.height) {
+                star.y = 0;
+                star.x = Math.random() * canvas.width;
+            }
+            ctx.globalAlpha = star.speed / 2; // 빠른 별일수록 밝게
+            ctx.beginPath();
+            ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1.0; // 알파 리셋
+
+        // 플레이어 업데이트 및 그리기
+        player.update();
+        player.draw();
+
+        // 총알 업데이트 및 그리기
+        bullets.forEach((bullet, index) => {
+            bullet.update();
+            bullet.draw();
+        });
+
+        // 적 생성 로직 (시간이 지날수록 생성 주기 짧아짐, 난이도 증가)
+        let spawnRate = Math.max(20, 100 - Math.floor(score / 200)); 
+        if (frameCount % spawnRate === 0) {
+            enemies.push(new Enemy());
+        }
+
+        // 적 업데이트, 그리기 및 충돌 판정
+        enemies.forEach((enemy, eIndex) => {
+            enemy.update();
+            enemy.draw();
+
+            // 플레이어와 적 충돌 검사
+            if (checkCollision(player, enemy)) {
+                enemy.markedForDeletion = true;
+                player.hit();
+            }
+
+            // 총알과 적 충돌 검사
+            bullets.forEach((bullet, bIndex) => {
+                if (checkCollision(bullet, enemy)) {
+                    bullet.markedForDeletion = true;
+                    enemy.hit(); // 적 체력 감소 및 파괴 처리
+                }
+            });
+        });
+
+        // 파티클 업데이트 및 그리기
+        particles.forEach(particle => {
+            particle.update();
+            particle.draw();
+        });
+
+        // 삭제 표시된 객체들 배열에서 제거 (가비지 컬렉션 최적화)
+        bullets = bullets.filter(bullet => !bullet.markedForDeletion);
+        enemies = enemies.filter(enemy => !enemy.markedForDeletion);
+        particles = particles.filter(particle => !particle.markedForDeletion);
+
+        frameCount++;
+        animationId = requestAnimationFrame(animate);
+    }
+
+    // 키보드 이벤트 리스너 등록
+    window.addEventListener('keydown', (e) => {
+        if (keys.hasOwnProperty(e.code)) {
+            keys[e.code] = true;
+            // 스페이스바 등 스크롤 방지
+            if(e.code === 'Space' || e.code.startsWith('Arrow')) {
+                e.preventDefault();
+            }
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (keys.hasOwnProperty(e.code)) {
+            keys[e.code] = false;
+        }
+    });
+
+    // 버튼 이벤트 리스너
+    startBtn.addEventListener('click', init);
+    restartBtn.addEventListener('click', init);
+    
+    // === 모바일 터치 컨트롤 이벤트 리스너 설정 ===
+    const setupTouchBtn = (id, action) => {
+        const btn = document.getElementById(id);
+        if(!btn) return;
+        
+        // 터치 시작
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // 기본 터치 동작(스크롤, 확대 등) 방지
+            if(action === 'Space') {
+                touchControls.shoot = true;
+            } else {
+                touchControls[action] = true;
+            }
+        });
+        
+        // 터치 종료
+        btn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if(action === 'Space') {
+                touchControls.shoot = false;
+            } else {
+                touchControls[action] = false;
+            }
+        });
+        
+        // 터치 영역 벗어남 (캔슬)
+        btn.addEventListener('touchcancel', (e) => {
+             e.preventDefault();
+             if(action === 'Space') {
+                touchControls.shoot = false;
+            } else {
+                touchControls[action] = false;
+            }
+        });
+    };
+
+    setupTouchBtn('btn-up', 'up');
+    setupTouchBtn('btn-down', 'down');
+    setupTouchBtn('btn-left', 'left');
+    setupTouchBtn('btn-right', 'right');
+    setupTouchBtn('btn-shoot', 'Space');
+
+</script>
+</body>
+</html>
